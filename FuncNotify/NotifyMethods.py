@@ -157,8 +157,8 @@ class NotifyMethods(metaclass=FactoryRegistry):
                 path=logger_path
             else:
                 path = environ.get("LOGGER_PATH", "")
-                path = path if path else os.getcwd() # If env variable but not defined is empty sets path to cwd
-                
+                path = path or os.getcwd()
+
             if not os.path.isdir(os.path.join(path, "logs")):
                 os.mkdir("logs")
 
@@ -186,11 +186,11 @@ class NotifyMethods(metaclass=FactoryRegistry):
             logger_strings = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "OFF"]
             logger_levels = range(logging.DEBUG, logging.CRITICAL + 11, 10)
             logger_funcs = [cls.logger.debug, cls.logger.info, cls.logger.warning, cls.logger.error, cls.logger.critical]
-            
+
             cls.log_method_dict = dict(zip(logger_strings, logger_funcs))
             cls.log_level_dict = dict(zip(logger_strings, logger_levels))
-            
-        elif not (environ.get("LOG") or log or logger_path) and environ:
+
+        elif not environ.get("LOG") and not log and not logger_path and environ:
             cls.logger_off()
             
 
@@ -210,12 +210,11 @@ class NotifyMethods(metaclass=FactoryRegistry):
         """        
         if cls.logger is None:
             NotifyMethods.logger_init(log=True)
-        
+
         if level is not None and level_string is not None:
             raise ValueError("`level` and `level_string` are mutually exclusive variables")
-        else:
-            lvl = max(level if isinstance(level, int) else -1, cls.log_level_dict.get(level_string, -1))
-            lvl = lvl if lvl != -1 else logging.DEBUG
+        lvl = max(level if isinstance(level, int) else -1, cls.log_level_dict.get(level_string, -1))
+        lvl = lvl if lvl != -1 else logging.DEBUG
         cls.logger.setLevel(lvl)
     @classmethod
     def logger_off(cls):
