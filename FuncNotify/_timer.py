@@ -52,8 +52,10 @@ def get_notify_obj(NotifyMethod: str, environ_dict: dict, obj_args, obj_kwargs, 
         NotifyMethods: NotifyMethods obbject that allows you to send start, stop and error messages
     """
     def default_notify(*args, **kwargs): # Sends a warning your notify method didn't match 
-        warnings.warn(f"Invalid NotifyMethod type '{NotifyMethod}' specified, will use `PrintMethod`, " \
-                      f"select a type within these keys: {[key for key in FuncNotify.NotifyTypes]}.")
+        warnings.warn(
+            f"Invalid NotifyMethod type '{NotifyMethod}' specified, will use `PrintMethod`, select a type within these keys: {list(FuncNotify.NotifyTypes)}."
+        )
+
         return FuncNotify.NotifyTypes["Print"](*args, **kwargs)
     
     if target_dict is None:
@@ -66,7 +68,7 @@ def get_notify_obj(NotifyMethod: str, environ_dict: dict, obj_args, obj_kwargs, 
                 
 
 def Notify_Obj_Factory(NotifyMethod: str=None, use_env: bool=True, env_path: str=".env", update_env: bool=False, 
-              multi_target: list=None, multi_env: list=None, func=None, message: str=None, args=None, kwargs=None)-> list: 
+              multi_target: list=None, multi_env: list=None, func=None, message: str=None, args=None, kwargs=None) -> list:
     """Creates a list of NotifyMethods Objects to be used to send messages
 
     Args:
@@ -91,36 +93,59 @@ def Notify_Obj_Factory(NotifyMethod: str=None, use_env: bool=True, env_path: str
     
     notify_obj_list=[]
     global ENV_DICT
-    
+
     if update_env or ENV_DICT is None or not use_env:
         ENV_DICT={**os.environ, **dotenv.dotenv_values(env_path)} if use_env else {} 
-    
+
     if multi_env and multi_target: 
         # NOTE multi_target and multi_env must be corresponding and will only do up shortest of the two lissts
         for target, spec_env_path in zip(multi_target, multi_env):
             spec_environ_dict={**ENV_DICT, **dotenv.dotenv_values(spec_env_path)} if spec_env_path else ENV_DICT
             target_method=target.get("NotifyMethod", NotifyMethod)
-            method_string=target_method if target_method else spec_environ_dict.get("DEFAULTNOTIFY", "NotFound")
-            
+            method_string = target_method or spec_environ_dict.get(
+                "DEFAULTNOTIFY", "NotFound"
+            )
+
+
             notify_obj_list.append(
                 get_notify_obj(method_string,
                                target_dict=target, environ_dict=spec_environ_dict, 
                                obj_args=args, obj_kwargs=kwargs))
     elif multi_target:
-        for target in multi_target: # Rewrite as a function for easier reuse
-            notify_obj_list.append(
-                get_notify_obj(NotifyMethod=target.get("NotifyMethod", NotifyMethod),
-                               target_dict=target, environ_dict=ENV_DICT, 
-                               obj_args=args, obj_kwargs=kwargs))
+        notify_obj_list.extend(
+            get_notify_obj(
+                NotifyMethod=target.get("NotifyMethod", NotifyMethod),
+                target_dict=target,
+                environ_dict=ENV_DICT,
+                obj_args=args,
+                obj_kwargs=kwargs,
+            )
+            for target in multi_target
+        )
+
     elif multi_env:
-         for spec_env_path in multi_env:
+        for spec_env_path in multi_env:
             spec_environ_dict={**ENV_DICT, **dotenv.dotenv_values(spec_env_path)}
             notify_obj_list.append(
-                get_notify_obj(NotifyMethod=NotifyMethod if NotifyMethod else spec_environ_dict.get("DEFAULTNOTIFY", "NotFound"), 
-                               environ_dict=spec_environ_dict, obj_args=args, obj_kwargs=kwargs))
+                get_notify_obj(
+                    NotifyMethod=NotifyMethod
+                    or spec_environ_dict.get("DEFAULTNOTIFY", "NotFound"),
+                    environ_dict=spec_environ_dict,
+                    obj_args=args,
+                    obj_kwargs=kwargs,
+                )
+            )
+
     else:
         notify_obj_list.append(
-            get_notify_obj(NotifyMethod=NotifyMethod if NotifyMethod else ENV_DICT.get("DEFAULTNOTIFY", "NotFound"), 
-                           environ_dict=ENV_DICT, obj_args=args, obj_kwargs=kwargs))
-    
+            get_notify_obj(
+                NotifyMethod=NotifyMethod
+                or ENV_DICT.get("DEFAULTNOTIFY", "NotFound"),
+                environ_dict=ENV_DICT,
+                obj_args=args,
+                obj_kwargs=kwargs,
+            )
+        )
+
+
     return notify_obj_list

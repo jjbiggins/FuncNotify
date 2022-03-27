@@ -87,7 +87,6 @@ class xNotifyxMethod(NotifyMethods):
     def send_message(self, MSG: str):
         try:
             """TODO Specify the API and set up of sending a singular message"""
-            pass         
         except Exception as ex:
             """Handle the error somewhat or don't. If you want to add more information do it here"""       
             raise ex
